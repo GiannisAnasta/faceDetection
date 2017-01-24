@@ -1,10 +1,11 @@
 package gui;
 
-import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import javax.imageio.ImageIO;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -15,10 +16,8 @@ import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
-import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
 import org.opencv.highgui.VideoCapture;
-import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 
 public class FaceDetection extends javax.swing.JFrame {
@@ -27,81 +26,113 @@ public class FaceDetection extends javax.swing.JFrame {
     int count = 0;
     VideoCapture webSource = null;
     Mat frame = new Mat();
-    MatOfDouble scaleFactor = new MatOfDouble(1.2);
+    boolean outputRejectLevels = true;
+    MatOfDouble scaleFactor1 = new MatOfDouble(1.3);
+    MatOfDouble scaleFactor2 = new MatOfDouble(1.3);
     MatOfByte mem = new MatOfByte();
-    MatOfInt minNeighbors = new MatOfInt(4);
+    MatOfInt minNeighbors1 = new MatOfInt(4);
+    MatOfInt minNeighbors2 = new MatOfInt(4);
 
-    CascadeClassifier frontalDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_frontalface_alt_tree.xml").getPath());
+    int sumFront = 0;
+    int sumSide = 0;
+    int found = 0;
+    int notFound = 0;
+    CascadeClassifier frontalDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_frontalface_alt2.xml").getPath());
     CascadeClassifier profileFaceDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_profileface.xml").getPath());
+//    CascadeClassifier rEarFaceDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_mcs_leftear.xml").getPath());
+//    CascadeClassifier lEarFaceDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_mcs_rightear.xml").getPath());
     MatOfRect faceDetections1 = new MatOfRect();
     MatOfRect faceDetections2 = new MatOfRect();
 
     class DaemonThread implements Runnable {
 
         protected volatile boolean runnable = false;
+        private int frameNum = 0;
+        private List<Rect> faces = new ArrayList<>();
 
         @Override
         public void run() {
             synchronized (this) {
                 while (runnable) {
                     if (webSource.grab()) {
-                        try {
-                            webSource.retrieve(frame);
-                            frontalDetector.detectMultiScale(frame, faceDetections1, minNeighbors, scaleFactor);
+                        webSource.retrieve(frame);
+                        if (frameNum > 15) {
+                            faces = detect();
+                            System.out.println("detection!");
+                            frameNum = 0;
+                        }
+                        for (Rect rect : faces) {
 
-                            for (Rect rect : faceDetections1.toArray()) {
-                                System.out.println("found frontal unknown person");
-                                Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
-                                        new Scalar(0, 255, 0));
-                            }
+                            Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
+                                    new Scalar(255, 0, 0));
+                        }
+                        System.out.println("frame num: " + frameNum);
+                        frameNum++;
+                        //show result frame                        
+                        try {
                             Highgui.imencode(".png", frame, mem);
-//                          
                             Image im = ImageIO.read(new ByteArrayInputStream(mem.toArray()));
                             BufferedImage buff = (BufferedImage) im;
-                            if (jPanel1.getGraphics().drawImage(buff, 0, 0, getWidth(), getHeight(), 0, 0, buff.getWidth(), buff.getHeight(), null)) {
-                                if (runnable == false) {
-                                    System.out.println("Stop");
-                                    this.wait();
-                                }
-                            }
+                            jPanel1.getGraphics().drawImage(buff, 0, 0, getWidth(), getHeight(), 0, 0, buff.getWidth(), buff.getHeight(), null);
                         } catch (Exception ex) {
                             ex.printStackTrace();
                             System.out.println("Error");
-                        }
-                        try {
-
-                            profileFaceDetector.detectMultiScale(frame, faceDetections2, minNeighbors, scaleFactor);
-                            for (Rect rect : faceDetections2.toArray()) {
-                                System.out.println("found side unknown person");
-                                Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
-                                        new Scalar(0, 0, 255));
-                            }
-                            Highgui.imencode(".png", frame, mem);
-
-                            Image im = ImageIO.read(new ByteArrayInputStream(mem.toArray()));
-                            BufferedImage buff = (BufferedImage) im;
-                            if (jPanel1.getGraphics().drawImage(buff, 0, 0, getWidth(), getHeight(), 0, 0, buff.getWidth(), buff.getHeight(), null)) {
-                                if (runnable == false) {
-                                    System.out.println("Stop");
-                                    this.wait();
-                                }
-                            }
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                            System.out.println("Error");
-                        }
-                        if (faceDetections1.toArray().length > 0 || faceDetections2.toArray().length > 0) {
-                            String filename = "/home/giannis/Downloads/DETECTED/" + new Date().toString() + ".png";
-                            Highgui.imwrite(filename, frame);
                         }
                     }
                 }
             }
         }
+
+        private List<Rect> detect() {
+            long start = System.nanoTime();
+            frontalDetector.detectMultiScale(frame, faceDetections1, minNeighbors1, scaleFactor1);
+            long end = System.nanoTime();
+            System.out.println("time passed: " + (end - start) / 1000000);
+
+            for (Rect rect : faceDetections1.toArray()) {
+                System.out.println("found");
+                Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
+                        new Scalar(0, 0, 255));
+            }
+            if (faceDetections1.toArray().length > 0) {
+                sumFront = sumFront + 1;
+                System.out.println("Positive frontal faces :" + sumFront);
+            }
+            profileFaceDetector.detectMultiScale(frame, faceDetections2, minNeighbors2, scaleFactor2);
+            if (faceDetections2.toArray().length > 0) {
+                sumSide = sumSide + 1;
+                System.out.println("Positive Side faces :" + sumSide);
+            }
+            for (Rect rect : faceDetections2.toArray()) {
+                System.out.println("found side");
+                Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
+                        new Scalar(0, 255, 255));
+            }
+
+            if (faceDetections1.toArray().length > 0 || faceDetections2.toArray().length > 0) {
+                String filename = "/home/giannis/Downloads/DETECTED/" + new Date().toString() + ".png";
+                Highgui.imwrite(filename, frame);
+                found++;
+                System.out.println("found: " + found);
+            } else {
+                notFound++;
+                System.out.println("not found: " + notFound);
+            }
+            ArrayList<Rect> arrayList = new ArrayList<Rect>();
+            arrayList.addAll(faceDetections1.toList());
+            arrayList.addAll(faceDetections2.toList());
+            return arrayList;
+        }
     }
 
     public FaceDetection() {
         initComponents();
+        webSource = new VideoCapture(0);// video capture from default cam
+        myThread = new DaemonThread();//create object of threat class
+        Thread t = new Thread(myThread);
+        t.setDaemon(true);
+        myThread.runnable = true;
+        t.start();//start thread
     }
 
     @SuppressWarnings("unchecked")
@@ -109,9 +140,6 @@ public class FaceDetection extends javax.swing.JFrame {
     private void initComponents() {
 
         jPanel1 = new javax.swing.JPanel();
-        jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -119,33 +147,12 @@ public class FaceDetection extends javax.swing.JFrame {
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 0, Short.MAX_VALUE)
+            .addGap(0, 1205, Short.MAX_VALUE)
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGap(0, 670, Short.MAX_VALUE)
         );
-
-        jButton1.setText("Start");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
-            }
-        });
-
-        jButton2.setText("Pause");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
-            }
-        });
-
-        jButton3.setText("Save Picure");
-        jButton3.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton3ActionPerformed(evt);
-            }
-        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -155,55 +162,17 @@ public class FaceDetection extends javax.swing.JFrame {
                 .addGap(24, 24, 24)
                 .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addContainerGap())
-            .addGroup(layout.createSequentialGroup()
-                .addGap(335, 335, 335)
-                .addComponent(jButton1)
-                .addGap(164, 164, 164)
-                .addComponent(jButton2)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 255, Short.MAX_VALUE)
-                .addComponent(jButton3)
-                .addGap(229, 229, 229))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jButton1)
-                    .addComponent(jButton2)
-                    .addComponent(jButton3))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(43, Short.MAX_VALUE))
         );
-
-        jButton3.getAccessibleContext().setAccessibleName("s");
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
-
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        //stop button
-        myThread.runnable = false;// stop thread
-        jButton2.setEnabled(false);// activate start button 
-        jButton1.setEnabled(true);// deactivate stop button
-        webSource.release();// stop caturing fron cam
-    }//GEN-LAST:event_jButton2ActionPerformed
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        //start button
-        webSource = new VideoCapture(0);// video capture from default cam
-        myThread = new DaemonThread();//create object of threat class
-        Thread t = new Thread(myThread);
-        t.setDaemon(true);
-        myThread.runnable = true;
-        t.start();//start thread
-        jButton1.setEnabled(false);// deactivate start button
-        jButton2.setEnabled(true);//  activate stop button
-    }//GEN-LAST:event_jButton1ActionPerformed
-
-    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-
-    }//GEN-LAST:event_jButton3ActionPerformed
     public static void main(String args[]) {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         try {
@@ -224,14 +193,13 @@ public class FaceDetection extends javax.swing.JFrame {
         }
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new FaceDetection().setVisible(true);
+
+                FaceDetection faceDetection = new FaceDetection();
+                faceDetection.setVisible(true);
             }
         });
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
     private javax.swing.JPanel jPanel1;
     // End of variables declaration//GEN-END:variables
 }
