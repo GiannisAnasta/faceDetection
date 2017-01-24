@@ -38,9 +38,9 @@ public class FaceDetection extends javax.swing.JFrame {
     int found = 0;
     int notFound = 0;
     CascadeClassifier frontalDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_frontalface_alt2.xml").getPath());
-    CascadeClassifier profileFaceDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_profileface.xml").getPath());
-    MatOfRect faceDetections1 = new MatOfRect();
-    MatOfRect faceDetections2 = new MatOfRect();
+    CascadeClassifier sideDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_profileface.xml").getPath());
+    MatOfRect frontalDetection = new MatOfRect();
+    MatOfRect sideDetection = new MatOfRect();
 
     class DaemonThread implements Runnable {
 
@@ -83,31 +83,31 @@ public class FaceDetection extends javax.swing.JFrame {
 
         private List<Rect> detect() {
             long start = System.nanoTime();
-            frontalDetector.detectMultiScale(frame, faceDetections1, minNeighbors1, scaleFactor1);
+            frontalDetector.detectMultiScale(frame, frontalDetection, minNeighbors1, scaleFactor1);
             long end = System.nanoTime();
 //            System.out.println("time passed: " + (end - start) / 1000000);
 
-            for (Rect rect : faceDetections1.toArray()) {
+            for (Rect rect : frontalDetection.toArray()) {
                 System.out.println("found");
                 Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
                         new Scalar(0, 0, 255));
             }
-            if (faceDetections1.toArray().length > 0) {
+            if (frontalDetection.toArray().length > 0) {
                 sumFront = sumFront + 1;
                 System.out.println("Positive frontal faces :" + sumFront);
             }
-            profileFaceDetector.detectMultiScale(frame, faceDetections2, minNeighbors2, scaleFactor2);
-            if (faceDetections2.toArray().length > 0) {
+            sideDetector.detectMultiScale(frame, sideDetection, minNeighbors2, scaleFactor2);
+            if (sideDetection.toArray().length > 0) {
                 sumSide = sumSide + 1;
-                System.out.println("Positive Side faces :" + sumSide);
+                System.out.println("Side faces :" + sumSide);
             }
-            for (Rect rect : faceDetections2.toArray()) {
+            for (Rect rect : sideDetection.toArray()) {
                 System.out.println("found side");
                 Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
                         new Scalar(0, 255, 255));
             }
 
-            if (faceDetections1.toArray().length > 0 || faceDetections2.toArray().length > 0) {
+            if (frontalDetection.toArray().length > 0 || sideDetection.toArray().length > 0) {
                 String filename = "/home/giannis/Downloads/DETECTED/" + new Date().toString() + ".png";
                 Highgui.imwrite(filename, frame);
                 found++;
@@ -117,14 +117,14 @@ public class FaceDetection extends javax.swing.JFrame {
                 System.out.println("not found: " + notFound);
             }
             ArrayList<Rect> facesDetected = new ArrayList<Rect>();
-            facesDetected.addAll(faceDetections1.toList());
-            facesDetected.addAll(faceDetections2.toList());
+            facesDetected.addAll(frontalDetection.toList());
+            facesDetected.addAll(sideDetection.toList());
             for (Rect mayBeFace : facesDetected) {
                 Mat submat = frame.submat(mayBeFace);
                 MatOfRect faceDetections1 = new MatOfRect();
                 MatOfRect faceDetections2 = new MatOfRect();
                 frontalDetector.detectMultiScale(submat, faceDetections1, minNeighbors1, scaleFactor1);
-                profileFaceDetector.detectMultiScale(submat, faceDetections2, minNeighbors2, scaleFactor2);
+                sideDetector.detectMultiScale(submat, faceDetections2, minNeighbors2, scaleFactor2);
                 if (faceDetections1.toArray().length + faceDetections2.toArray().length > 0) {
                     String filename = "/home/giannis/Downloads/TRUE_DETECTED/" + new Date().toString() + ".png";
                     Highgui.imwrite(filename, submat);
