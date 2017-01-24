@@ -39,8 +39,6 @@ public class FaceDetection extends javax.swing.JFrame {
     int notFound = 0;
     CascadeClassifier frontalDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_frontalface_alt2.xml").getPath());
     CascadeClassifier profileFaceDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_profileface.xml").getPath());
-//    CascadeClassifier rEarFaceDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_mcs_leftear.xml").getPath());
-//    CascadeClassifier lEarFaceDetector = new CascadeClassifier(FaceDetection.class.getResource("haarcascade_mcs_rightear.xml").getPath());
     MatOfRect faceDetections1 = new MatOfRect();
     MatOfRect faceDetections2 = new MatOfRect();
 
@@ -66,7 +64,7 @@ public class FaceDetection extends javax.swing.JFrame {
                             Core.rectangle(frame, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
                                     new Scalar(255, 0, 0));
                         }
-                        System.out.println("frame num: " + frameNum);
+//                        System.out.println("frame num: " + frameNum);
                         frameNum++;
                         //show result frame                        
                         try {
@@ -87,7 +85,7 @@ public class FaceDetection extends javax.swing.JFrame {
             long start = System.nanoTime();
             frontalDetector.detectMultiScale(frame, faceDetections1, minNeighbors1, scaleFactor1);
             long end = System.nanoTime();
-            System.out.println("time passed: " + (end - start) / 1000000);
+//            System.out.println("time passed: " + (end - start) / 1000000);
 
             for (Rect rect : faceDetections1.toArray()) {
                 System.out.println("found");
@@ -118,10 +116,25 @@ public class FaceDetection extends javax.swing.JFrame {
                 notFound++;
                 System.out.println("not found: " + notFound);
             }
-            ArrayList<Rect> arrayList = new ArrayList<Rect>();
-            arrayList.addAll(faceDetections1.toList());
-            arrayList.addAll(faceDetections2.toList());
-            return arrayList;
+            ArrayList<Rect> facesDetected = new ArrayList<Rect>();
+            facesDetected.addAll(faceDetections1.toList());
+            facesDetected.addAll(faceDetections2.toList());
+            for (Rect mayBeFace : facesDetected) {
+                Mat submat = frame.submat(mayBeFace);
+                MatOfRect faceDetections1 = new MatOfRect();
+                MatOfRect faceDetections2 = new MatOfRect();
+                frontalDetector.detectMultiScale(submat, faceDetections1, minNeighbors1, scaleFactor1);
+                profileFaceDetector.detectMultiScale(submat, faceDetections2, minNeighbors2, scaleFactor2);
+                if (faceDetections1.toArray().length + faceDetections2.toArray().length > 0) {
+                    String filename = "/home/giannis/Downloads/TRUE_DETECTED/" + new Date().toString() + ".png";
+                    Highgui.imwrite(filename, submat);
+                } else {
+                    String filename = "/home/giannis/Downloads/FALSE_DETECTED/" + new Date().toString() + ".png";
+                    Highgui.imwrite(filename, submat);
+                }
+
+            }
+            return facesDetected;
         }
     }
 
@@ -180,16 +193,24 @@ public class FaceDetection extends javax.swing.JFrame {
                 if ("Nimbus".equals(info.getName())) {
                     javax.swing.UIManager.setLookAndFeel(info.getClassName());
                     break;
+
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(FaceDetection.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(FaceDetection.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(FaceDetection.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(FaceDetection.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(FaceDetection.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(FaceDetection.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(FaceDetection.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(FaceDetection.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
