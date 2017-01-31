@@ -129,6 +129,7 @@ public class FaceDetection extends javax.swing.JFrame {
                     String filename = "/home/giannis/Downloads/TRUE_DETECTED/" + new Date().toString() + ".png";
                     Highgui.imwrite(filename, submat);
                 } else {
+
                     String filename = "/home/giannis/Downloads/FALSE_DETECTED/" + new Date().toString() + ".png";
                     Highgui.imwrite(filename, submat);
                 }
